@@ -1,0 +1,76 @@
+{
+  "default": [
+    {
+      "timestamp": "2025-10-09T02:47:32.980221Z",
+      "entry_text": "I felt anxious at work today but still finished my tasks.",
+      "emotion": "anxiety",
+      "reply": "That buzz of anxiety is your body asking for a moment of softness. Pair a slow inhale with a supportive phrase such as 'You can take this one step at a time.'."
+    },
+    {
+      "timestamp": "2025-10-09T02:49:03.272904Z",
+      "entry_text": "I felt anxious at work today but still finished my tasks.",
+      "emotion": "anxiety",
+      "reply": "That buzz of anxiety is your body asking for a moment of softness. Pair a slow inhale with a supportive phrase such as 'You can take this one step at a time.'."
+    },
+    {
+      "timestamp": "2025-10-09T02:50:48.323856Z",
+      "entry_text": "I felt anxious at work today but still finished my tasks.",
+      "emotion": "anxiety",
+      "reply": "That buzz of anxiety is your body asking for a moment of softness. Pair a slow inhale with a supportive phrase such as 'You can take this one step at a time.'."
+    },
+    {
+      "timestamp": "2025-10-09T03:04:10.313959Z",
+      "entry_text": "I felt anxious at work today but still finished my tasks.",
+      "emotion": "anxiety",
+      "reply": "It sounds like you handled your anxieties well, and that's something to be proud of!  Sometimes those \"feeling-anxious\" sensations can feel a little overwhelming.  Instead of fighting them, perhaps try focusing on a few deep breaths \u2013 maybe even imagine yourself at the beach and feeling calm. Remember, it\u2019s okay to take things one step at a time. \ud83d\ude0a"
+    },
+    {
+      "timestamp": "2025-10-09T03:08:11.929202Z",
+      "entry_text": "Today I felt overwhelmed balancing family and deadlines, but I kept pushing through.",
+      "emotion": "stress",
+      "reply": "It's amazing how much you can accomplish when you're juggling so many responsibilities!  Remember to acknowledge the weight of that balance - it's okay to feel overwhelmed sometimes.  Perhaps try writing down all the things on your mind \u2013 then take a step back and imagine them flowing like water, gently going where they need to go."
+    },
+    {
+      "timestamp": "2025-10-09T03:26:58.736829Z",
+      "entry_text": "Im feeling anxious after work today, after a work meeting and upcoming deadlines",
+      "emotion": "fear",
+      "reply": "It sounds like you're carrying some extra weight on your shoulders right now, with that work meeting and the looming deadlines. It's completely normal to feel this way -  your brain is juggling all those possibilities! \ud83e\udde0  How about we try a little relaxation exercise? Close your eyes for a minute, take a deep breath in... and then slowly let it out. Repeat that a few times, just focusing on your breath. \ud83d\ude0a You got this. \ud83d\udcaa"
+    },
+    {
+      "timestamp": "2025-10-10T14:41:40.005498Z",
+      "entry_text": "I had a long day at school today, and I got yelled at by my parents when I came home",
+      "emotion": "anger",
+      "reply": "Anyone in your shoes would feel that flare of frustration after being overlooked. Step outside for a breath of air before you decide how you want to respond."
+    },
+    {
+      "timestamp": "2025-10-10T14:45:28.715174Z",
+      "entry_text": "I had a terrible day at school today",
+      "emotion": "fear",
+      "reply": "It sounds like things didn't go your way today, and that's okay. It's tough when we face challenges at school and feel let down by those around us.  Do you want to talk about it? Sometimes just expressing our feelings can help clear the air a bit. If you need someone to listen, I'm here for you. \ud83d\ude0a"
+    },
+    {
+      "timestamp": "2025-10-10T15:27:52.436756Z",
+      "entry_text": "I lost a soccer game and it was all my fault due to a missed penalty",
+      "emotion": "sadness",
+      "reply": "It makes perfect sense to feel heavy right now; your heart has been working so hard. Give yourself a quiet pause and jot one gentle thought you want to bring into tomorrow."
+    },
+    {
+      "timestamp": "2025-10-10T15:29:06.065522Z",
+      "entry_text": "I feel like its all my fault",
+      "emotion": "sadness",
+      "reply": "Hey there, \n\nIt's okay to feel overwhelmed right now. It sounds like you're carrying a lot.  Take some deep breaths; your body will thank you for it. Remember that even though things didn't go perfectly, it doesn't change who you are as a person or as a player. Mistakes happen, and they are opportunities to learn and grow. \n\nMaybe try writing down what you learned today and how you can handle similar situations in the future?  You got this! \ud83d\ude0a \ud83d\udcaa"
+    },
+    {
+      "timestamp": "2025-10-10T16:02:11.390543Z",
+      "entry_text": "I did bad on a techincal interview",
+      "emotion": "disgust",
+      "reply": "Your reaction is a sign that your boundaries deserve a little more protection. Sketch a quick boundary you want to reinforce so you feel safer moving forward."
+    },
+    {
+      "timestamp": "2025-10-10T19:41:25.536520Z",
+      "entry_text": "I did bad on one of my tests",
+      "emotion": "disgust",
+      "reply": "It's okay to feel frustrated, even disappointed in yourself for not performing as well as you hoped on that test. Remember, everyone makes mistakes!  But it sounds like this is a good time to learn from the experience and try something new. What did you find particularly challenging? \ud83d\ude0a"
+    }
+  ]
+}

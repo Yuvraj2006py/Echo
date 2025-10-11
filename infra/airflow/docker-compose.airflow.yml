@@ -1,0 +1,61 @@
+version: "3.9"
+
+x-airflow-common:
+  &airflow-common
+  image: echo-airflow:latest
+  build:
+    context: .
+    dockerfile: Dockerfile
+  environment:
+    &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
+    AIRFLOW__CORE__FERNET_KEY: "99--t5ST5_t2Mg3DUGLWgUaB4QUEv4KmLRa1Xg0zkFk=" # replace with secure value in production
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+    AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+    PYTHONPATH: /opt/echo
+    SUPABASE_URL: ${SUPABASE_URL}
+    SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+    OPENAI_API_KEY: ${OPENAI_API_KEY}
+    OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    TZ: America/Toronto
+  volumes:
+    - ./airflow_home:/opt/airflow
+    - ../..:/opt/echo
+  depends_on:
+    airflow-db:
+      condition: service_healthy
+    airflow-redis:
+      condition: service_started
+
+services:
+  airflow-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+    volumes:
+      - airflow-db-data:/var/lib/postgresql/data
+
+  airflow-redis:
+    image: redis:7
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+
+volumes:
+  airflow-db-data:

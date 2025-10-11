@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  min-height: 100vh;
+  background: radial-gradient(120% 120% at 50% 0%, rgba(124, 131, 253, 0.35) 0%, rgba(15, 17, 26, 0.92) 35%, #0f111a 100%);
+  color: #f8faff;
+  @apply bg-[#0f111a] text-slate-100 antialiased;
+}
+
+.gradient-border {
+  background: linear-gradient(120deg, #6366f1, #a855f7, #22d3ee);
+  background-size: 200% 200%;
+  border-radius: 1.25rem;
+  animation: gradientShift 8s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.glass-card {
+  background: rgba(15, 17, 26, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 20px rgba(124, 131, 253, 0.2);
+  backdrop-filter: blur(18px);
+}
+
+.bubble-shadow {
+  box-shadow: 0 0 20px rgba(124, 131, 253, 0.45);
+}
+
+.echo-pulse {
+  animation: glowPulse 3s ease-in-out infinite;
+}
