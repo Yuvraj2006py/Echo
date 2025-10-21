@@ -5,12 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
 import { getSupabaseBrowserClient } from "../lib/supabase";
-import { fetchProfile } from "../lib/api";
-import { rememberUserName, resolveUserName } from "../lib/user-display";
+import { ApiError, fetchProfile } from "../lib/api";
 
 const NAV_LINKS = [
   { label: "Home", href: "/" },
@@ -23,76 +22,48 @@ export function EchoNavbar() {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
-  const [token, setToken] = React.useState<string | null>(null);
-  const [userName, setUserName] = React.useState<string | null>(null);
-  const emailRef = React.useRef<string | null>(null);
+  const queryClient = useQueryClient();
 
-  React.useEffect(() => {
-    let isMounted = true;
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (!isMounted) {
-        return;
-      }
-      const session = data.session;
-      if (!session) {
-        setToken(null);
-        setUserName(null);
-        emailRef.current = null;
-        return;
-      }
-      setToken(session.access_token);
-      emailRef.current = session.user?.email ?? null;
-      const derivedName = resolveUserName(session);
-      if (derivedName) {
-        setUserName(derivedName);
-      }
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!isMounted) {
-        return;
-      }
-      if (!session) {
-        setToken(null);
-        setUserName(null);
-        emailRef.current = null;
-        return;
-      }
-      setToken(session.access_token);
-      emailRef.current = session.user?.email ?? null;
-      const derivedName = resolveUserName(session);
-      if (derivedName) {
-        setUserName(derivedName);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      authListener.subscription.unsubscribe();
-    };
-  }, [supabase]);
-
-  useQuery({
-    queryKey: ["profile", token],
-    queryFn: () => fetchProfile(token!),
-    enabled: Boolean(token),
-    staleTime: 1000 * 60 * 5,
-    onSuccess: (data) => {
-      const fetchedName = data.full_name?.trim();
-      if (!fetchedName) {
-        return;
-      }
-      setUserName((previous) => (previous === fetchedName ? previous : fetchedName));
-      rememberUserName(emailRef.current, fetchedName);
-    }
+  const profileQuery = useQuery({
+    queryKey: ["profile"],
+    queryFn: fetchProfile,
+    retry: false,
+    staleTime: 1000 * 60 * 5
   });
 
+  const profileError = profileQuery.error;
+  const isUnauthorized =
+    profileError instanceof ApiError && (profileError.status === 401 || profileError.status === 403);
+
+  const userName = React.useMemo(() => {
+    if (isUnauthorized) {
+      return null;
+    }
+    const raw = profileQuery.data?.full_name;
+    if (!raw) {
+      return null;
+    }
+    const trimmed = raw.trim();
+    return trimmed || null;
+  }, [isUnauthorized, profileQuery.data?.full_name]);
+
   async function handleSignOut() {
-    await supabase.auth.signOut();
-    setToken(null);
-    setUserName(null);
-    emailRef.current = null;
+    try {
+      await Promise.all([
+        supabase.auth.signOut(),
+        fetch("/api/auth/logout", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store"
+          },
+          body: "{}"
+        })
+      ]);
+    } finally {
+      queryClient.clear();
+    }
     router.replace("/login");
   }
 

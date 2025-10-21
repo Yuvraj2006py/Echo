@@ -1,10 +1,9 @@
 """Profile endpoints for managing user display names."""
 
-from __future__ import annotations
-
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Body, Depends, Request
 from pydantic import BaseModel, Field
 
+from ..core import rate_limit_write
 from ..db import queries
 from ..services.auth import AuthenticatedUser, get_current_user
 
@@ -20,6 +19,9 @@ class ProfilePayload(BaseModel):
     full_name: str = Field(..., min_length=1, max_length=120)
 
 
+ProfilePayload.model_rebuild()
+
+
 @router.get("", response_model=ProfileResponse)
 def read_profile(user: AuthenticatedUser = Depends(get_current_user)) -> ProfileResponse:
     record = queries.get_profile(user.id)
@@ -27,8 +29,10 @@ def read_profile(user: AuthenticatedUser = Depends(get_current_user)) -> Profile
 
 
 @router.post("", response_model=ProfileResponse)
+@rate_limit_write()
 def write_profile(
-    payload: ProfilePayload,
+    request: Request,
+    payload: ProfilePayload = Body(...),
     user: AuthenticatedUser = Depends(get_current_user),
 ) -> ProfileResponse:
     record = queries.upsert_profile(user.id, payload.full_name.strip())

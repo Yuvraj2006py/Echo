@@ -3,8 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { fetchEntry } from "../../../lib/api";
-import { getSupabaseBrowserClient } from "../../../lib/supabase";
+import { fetchEntry, ApiError } from "../../../lib/api";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { EntryEmotionPie } from "../../../components/EntryEmotionPie";
@@ -15,24 +14,19 @@ type EntryDetailPageProps = {
 
 export default function EntryDetailPage({ params }: EntryDetailPageProps) {
   const router = useRouter();
-  const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
-  const [token, setToken] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) {
-        router.replace("/login");
-      } else {
-        setToken(data.session.access_token);
-      }
-    });
-  }, [router, supabase]);
-
   const query = useQuery({
     queryKey: ["entry", params.id],
-    queryFn: () => fetchEntry(params.id, token!),
-    enabled: Boolean(token && params.id)
+    queryFn: () => fetchEntry(params.id),
+    enabled: Boolean(params.id),
+    retry: false
   });
+
+  React.useEffect(() => {
+    const error = query.error;
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      router.replace("/login");
+    }
+  }, [query.error, router]);
 
   if (query.isLoading) {
     return (

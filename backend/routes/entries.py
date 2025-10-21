@@ -1,13 +1,12 @@
 """Entry CRUD endpoints."""
 
-from __future__ import annotations
-
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel, Field, field_validator
 
+from ..core import rate_limit_write
 from ..db import queries
 from ..services import coping, emotion_analysis, metrics
 from ..services.auth import AuthenticatedUser, get_current_user
@@ -38,7 +37,24 @@ class EmotionScore(BaseModel):
 class EntryCreate(BaseModel):
     text: str = Field(..., min_length=1, max_length=4000)
     source: Optional[str] = Field(default="web", pattern="^(mobile|web)$")
-    tags: Optional[List[str]] = Field(default_factory=list)
+    tags: Optional[List[str]] = Field(default_factory=list, max_items=10)
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, value: Optional[List[str]]) -> List[str]:
+        if value is None:
+            return []
+        sanitized: List[str] = []
+        for raw in value:
+            if not isinstance(raw, str):
+                raise ValueError("Tags must be strings.")
+            normalized = raw.strip()
+            if not normalized:
+                raise ValueError("Tags cannot be empty strings.")
+            if len(normalized) > 32:
+                raise ValueError("Tags must be at most 32 characters long.")
+            sanitized.append(normalized)
+        return sanitized
 
 
 class EntryOut(BaseModel):
@@ -61,6 +77,11 @@ class EntryOut(BaseModel):
 class EntryCreateResponse(BaseModel):
     entry: EntryOut
     one_liner: str
+
+
+EntryCreate.model_rebuild()
+EntryOut.model_rebuild()
+EntryCreateResponse.model_rebuild()
 
 
 def _derive_top_emotion(emotions: List[EmotionScore]) -> Optional[EmotionScore]:
@@ -98,8 +119,10 @@ def _entry_from_db(data: dict) -> EntryOut:
 
 
 @router.post("", response_model=EntryCreateResponse, status_code=status.HTTP_201_CREATED)
+@rate_limit_write()
 def create_entry(
-    payload: EntryCreate,
+    request: Request,
+    payload: EntryCreate = Body(...),
     user: AuthenticatedUser = Depends(get_current_user),
 ) -> EntryCreateResponse:
     now = metrics.ensure_utc(datetime.now(timezone.utc))

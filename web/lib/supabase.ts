@@ -15,6 +15,11 @@ export function getSupabaseBrowserClient() {
     throw new Error("Supabase environment variables are missing.");
   }
 
-  browserClient = createBrowserClient(url, anonKey);
+  browserClient = createBrowserClient(url, anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false
+    }
+  });
   return browserClient;
 }

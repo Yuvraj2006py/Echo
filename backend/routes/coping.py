@@ -1,12 +1,11 @@
 """Coping kit routes."""
 
-from __future__ import annotations
-
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, validator
 
+from ..core import rate_limit_write
 from ..db import queries
 from ..services.auth import AuthenticatedUser, get_current_user
 
@@ -27,6 +26,9 @@ class CopingKitPayload(BaseModel):
         return normalized
 
 
+CopingKitPayload.model_rebuild()
+
+
 @router.get("/kit")
 def get_kit(user: AuthenticatedUser = Depends(get_current_user)) -> dict:
     actions = queries.get_coping_kit(user.id) or []
@@ -34,8 +36,10 @@ def get_kit(user: AuthenticatedUser = Depends(get_current_user)) -> dict:
 
 
 @router.post("/kit", status_code=status.HTTP_200_OK)
+@rate_limit_write()
 def save_kit(
-    payload: CopingKitPayload,
+    request: Request,
+    payload: CopingKitPayload = Body(...),
     user: AuthenticatedUser = Depends(get_current_user),
 ) -> dict:
     if len(payload.actions) > 3:

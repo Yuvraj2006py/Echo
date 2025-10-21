@@ -2,9 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { analyzeText, createEntry } from "../../../lib/api";
-import { getSupabaseBrowserClient } from "../../../lib/supabase";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { analyzeText, createEntry, fetchProfile, ApiError } from "../../../lib/api";
 import { Button } from "../../../components/ui/button";
 import { Textarea } from "../../../components/ui/textarea";
 import { Badge } from "../../../components/ui/badge";
@@ -20,9 +19,7 @@ type ConversationMessage = {
 
 export default function NewEntryPage() {
   const router = useRouter();
-  const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
   const queryClient = useQueryClient();
-  const [token, setToken] = React.useState<string | null>(null);
   const [text, setText] = React.useState("");
   const [tags, setTags] = React.useState<string[]>([]);
   const [suggestion, setSuggestion] = React.useState<string | null>(null);
@@ -31,18 +28,22 @@ export default function NewEntryPage() {
   const [conversation, setConversation] = React.useState<ConversationMessage[]>([]);
   const [chatInput, setChatInput] = React.useState("");
 
+  const profileQuery = useQuery({
+    queryKey: ["profile"],
+    queryFn: fetchProfile,
+    retry: false,
+    staleTime: 1000 * 60 * 5
+  });
+
   React.useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) {
-        router.replace("/login");
-      } else {
-        setToken(data.session.access_token);
-      }
-    });
-  }, [router, supabase]);
+    const error = profileQuery.error;
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      router.replace("/login");
+    }
+  }, [profileQuery.error, router]);
 
   const mutation = useMutation({
-    mutationFn: () => createEntry({ text, source: "web", tags }, token!),
+    mutationFn: () => createEntry({ text, source: "web", tags }),
     onSuccess: (data) => {
       setSuggestion(data.one_liner);
       setConversation([
@@ -58,16 +59,26 @@ export default function NewEntryPage() {
       queryClient.invalidateQueries({ queryKey: ["entries"] });
       queryClient.invalidateQueries({ queryKey: ["insights"] });
       queryClient.invalidateQueries({ queryKey: ["summary"] });
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        router.replace("/login");
+      }
     }
   });
 
   const chatMutation = useMutation({
-    mutationFn: (message: string) => analyzeText(message, token!),
+    mutationFn: (message: string) => analyzeText(message),
     onSuccess: (data) => {
       setConversation((prev) => [
         ...prev,
         { role: "echo", text: data.one_liner, timestamp: new Date() }
       ]);
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        router.replace("/login");
+      }
     }
   });
 
@@ -77,7 +88,6 @@ export default function NewEntryPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!token) return;
     setIsSubmitting(true);
     try {
       await mutation.mutateAsync();
@@ -88,7 +98,7 @@ export default function NewEntryPage() {
 
   async function handleSendChat(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!token || !chatInput.trim()) return;
+    if (!chatInput.trim()) return;
     const userMessage: ConversationMessage = {
       role: "user",
       text: chatInput.trim(),

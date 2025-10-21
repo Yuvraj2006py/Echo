@@ -4,77 +4,45 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { fetchEntries, fetchProfile } from "../../lib/api";
-import { getSupabaseBrowserClient } from "../../lib/supabase";
+import { fetchEntries, fetchProfile, ApiError } from "../../lib/api";
 import type { Entry } from "../../shared-types";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { EntryEmotionPie } from "../../components/EntryEmotionPie";
-import { rememberUserName, resolveUserName } from "../../lib/user-display";
 
 export default function EntriesPage() {
   const router = useRouter();
-  const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
-  const [token, setToken] = React.useState<string | null>(null);
   const [userName, setUserName] = React.useState<string | null>(null);
-  const emailRef = React.useRef<string | null>(null);
 
-  React.useEffect(() => {
-    let isMounted = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!isMounted) return;
-      if (!data.session) {
-        setToken(null);
-        setUserName(null);
-        emailRef.current = null;
-        router.replace("/login");
-        return;
-      }
-      setToken(data.session.access_token);
-      emailRef.current = data.session.user?.email ?? null;
-      setUserName(resolveUserName(data.session));
-    });
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!isMounted) {
-        return;
-      }
-      if (!session) {
-        setToken(null);
-        setUserName(null);
-        emailRef.current = null;
-        router.replace("/login");
-        return;
-      }
-      setToken(session.access_token);
-      emailRef.current = session.user?.email ?? null;
-      setUserName(resolveUserName(session));
-    });
-    return () => {
-      isMounted = false;
-      authListener.subscription.unsubscribe();
-    };
-  }, [router, supabase]);
-
-  useQuery({
-    queryKey: ["profile", token],
-    queryFn: () => fetchProfile(token!),
-    enabled: Boolean(token),
-    staleTime: 1000 * 60 * 5,
-    onSuccess: (data) => {
-      const fetchedName = data.full_name?.trim();
-      if (!fetchedName) {
-        return;
-      }
-      setUserName((previous) => (previous === fetchedName ? previous : fetchedName));
-      rememberUserName(emailRef.current, fetchedName);
-    }
+  const profileQuery = useQuery({
+    queryKey: ["profile"],
+    queryFn: fetchProfile,
+    retry: false,
+    staleTime: 1000 * 60 * 5
   });
 
+  React.useEffect(() => {
+    const error = profileQuery.error;
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      router.replace("/login");
+    }
+  }, [profileQuery.error, router]);
+
+  React.useEffect(() => {
+    const raw = profileQuery.data?.full_name;
+    if (!raw) {
+      setUserName(null);
+      return;
+    }
+    const trimmed = raw.trim();
+    setUserName(trimmed || null);
+  }, [profileQuery.data?.full_name]);
+
   const entriesQuery = useQuery({
-    queryKey: ["entries", token],
-    queryFn: () => fetchEntries(token!, 100),
-    enabled: Boolean(token),
+    queryKey: ["entries", 100],
+    queryFn: () => fetchEntries(100),
+    enabled: profileQuery.status === "success"
   });
 
   const entries: Entry[] = entriesQuery.data ?? [];

@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from jwt import PyJWTError
 
+from ..core import rate_limit_auth, rate_limit_write
 from ..db import queries
 from ..services.auth import AuthenticatedUser, get_current_user
 
@@ -152,6 +153,7 @@ async def _fetch_events(access_token: str, time_min: str, time_max: str) -> list
 
 
 @router.get("/oauth/start")
+@rate_limit_auth()
 async def start_oauth(
     request: Request,
     origin: str | None = Query(default=None),
@@ -258,7 +260,11 @@ def calendar_status(user: AuthenticatedUser = Depends(get_current_user)) -> Dict
 
 
 @router.delete("/disconnect")
-def calendar_disconnect(user: AuthenticatedUser = Depends(get_current_user)) -> Dict[str, bool]:
+@rate_limit_write()
+def calendar_disconnect(
+    request: Request,
+    user: AuthenticatedUser = Depends(get_current_user),
+) -> Dict[str, bool]:
     queries.delete_calendar_token(user.id)
     return {"ok": True}
 

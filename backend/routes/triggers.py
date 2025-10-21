@@ -1,13 +1,12 @@
 """Trigger library routes."""
 
-from __future__ import annotations
-
 from datetime import UTC, datetime, timedelta
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, validator
 
+from ..core import rate_limit_write
 from ..db import queries
 from ..services import triggers as trigger_service
 from ..services.auth import AuthenticatedUser, get_current_user
@@ -30,6 +29,9 @@ class TriggerPayload(BaseModel):
         return word
 
 
+TriggerPayload.model_rebuild()
+
+
 @router.get("")
 def list_triggers(user: AuthenticatedUser = Depends(get_current_user)) -> list[dict]:
     entries = queries.fetch_entries_since(
@@ -41,8 +43,10 @@ def list_triggers(user: AuthenticatedUser = Depends(get_current_user)) -> list[d
 
 
 @router.post("", status_code=status.HTTP_200_OK)
+@rate_limit_write()
 def upsert_trigger(
-    payload: TriggerPayload,
+    request: Request,
+    payload: TriggerPayload = Body(...),
     user: AuthenticatedUser = Depends(get_current_user),
 ) -> dict:
     record = queries.upsert_trigger(

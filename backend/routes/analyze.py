@@ -1,10 +1,9 @@
 """Ad-hoc emotion analysis."""
 
-from __future__ import annotations
-
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Body, Depends, Request, status
 from pydantic import BaseModel, Field
 
+from ..core import rate_limit_auth
 from ..services import coping, emotion_analysis
 from ..services.auth import AuthenticatedUser, get_current_user
 
@@ -22,9 +21,15 @@ class AnalyzeResponse(BaseModel):
     one_liner: str
 
 
+AnalyzeRequest.model_rebuild()
+AnalyzeResponse.model_rebuild()
+
+
 @router.post("", response_model=AnalyzeResponse, status_code=status.HTTP_200_OK)
+@rate_limit_auth()
 def analyze_text(
-    payload: AnalyzeRequest,
+    request: Request,
+    payload: AnalyzeRequest = Body(...),
     user: AuthenticatedUser = Depends(get_current_user),
 ) -> AnalyzeResponse:
     analyzer = emotion_analysis.get_emotion_analyzer()

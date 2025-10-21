@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any, Dict, Optional
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
+from ..core import get_settings
+
 
 bearer_scheme = HTTPBearer(auto_error=False)
+SESSION_COOKIE_NAME = "echo_session"
 
 
 class AuthenticatedUser(BaseModel):
@@ -21,37 +23,69 @@ class AuthenticatedUser(BaseModel):
 
 
 def _decode_token(token: str) -> Dict[str, Any]:
-    secret = os.getenv("SUPABASE_JWT_SECRET") or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    if not secret:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Supabase JWT secret not configured.",
-        )
+    settings = get_settings()
+    audience = settings.supabase_jwt_audience
+
     try:
         payload = jwt.decode(
             token,
-            secret,
+            settings.supabase_jwt_secret,
             algorithms=["HS256"],
-            options={"verify_aud": False},
+            audience=audience if audience else None,
+            options={
+                "require": ["exp", "iat", "sub"],
+                "verify_aud": bool(audience),
+            },
         )
+    except jwt.ExpiredSignatureError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Supabase token expired.",
+        ) from exc
+    except jwt.InvalidAudienceError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Supabase token audience mismatch.",
+        ) from exc
     except jwt.PyJWTError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid Supabase token.",
         ) from exc
+
+    issuer = payload.get("iss")
+    if issuer and settings.supabase_url not in issuer:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Supabase token issuer mismatch.",
+        )
+
     return payload
+
+
+def _resolve_bearer_token(
+    credentials: Optional[HTTPAuthorizationCredentials],
+    session_token: Optional[str],
+) -> Optional[str]:
+    if credentials and credentials.scheme.lower() == "bearer":
+        return credentials.credentials
+    if session_token:
+        return session_token
+    return None
 
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    session_token: Optional[str] = Cookie(default=None, alias=SESSION_COOKIE_NAME),
 ) -> AuthenticatedUser:
-    if not credentials or credentials.scheme.lower() != "bearer":
+    token = _resolve_bearer_token(credentials, session_token)
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header missing.",
+            detail="Authentication credentials missing.",
         )
 
-    payload = _decode_token(credentials.credentials)
+    payload = _decode_token(token)
     user_id = payload.get("sub") or payload.get("user_id")
     if not user_id:
         raise HTTPException(

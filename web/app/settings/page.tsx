@@ -11,9 +11,10 @@ import {
   saveCopingKit,
   getCalendarAuthorizeUrl,
   getCalendarStatus,
-  disconnectCalendar
+  disconnectCalendar,
+  fetchProfile,
+  ApiError
 } from "../../lib/api";
-import { getSupabaseBrowserClient } from "../../lib/supabase";
 import { Switch } from "../../components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
@@ -21,9 +22,7 @@ import { Input } from "../../components/ui/input";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
   const queryClient = useQueryClient();
-  const [token, setToken] = React.useState<string | null>(null);
   const [actionsDraft, setActionsDraft] = React.useState<string[]>(["", "", ""]);
   const [isConnectingCalendar, setIsConnectingCalendar] = React.useState(false);
   const [calendarNotice, setCalendarNotice] = React.useState<string | null>(null);
@@ -40,32 +39,31 @@ export default function SettingsPage() {
     }
   }, []);
 
-  React.useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) {
-        router.replace("/login");
-      } else {
-        setToken(data.session.access_token);
-      }
-    });
-  }, [router, supabase]);
+  const profileQuery = useQuery({
+    queryKey: ["profile"],
+    queryFn: fetchProfile,
+    retry: false,
+    staleTime: 1000 * 60 * 5
+  });
+
+  const isAuthenticated = profileQuery.status === "success";
 
   const calendarStatusQuery = useQuery({
     queryKey: ["calendar-status"],
-    queryFn: () => getCalendarStatus(token!),
-    enabled: Boolean(token)
+    queryFn: () => getCalendarStatus(),
+    enabled: isAuthenticated
   });
 
   const digestQuery = useQuery({
     queryKey: ["digest-pref"],
-    queryFn: () => getDigestPreference(token!),
-    enabled: Boolean(token)
+    queryFn: () => getDigestPreference(),
+    enabled: isAuthenticated
   });
 
   const kitQuery = useQuery({
     queryKey: ["coping-kit"],
-    queryFn: () => getCopingKit(token!),
-    enabled: Boolean(token),
+    queryFn: () => getCopingKit(),
+    enabled: isAuthenticated,
     onSuccess: (data) => {
       const base = data?.actions ?? [];
       setActionsDraft([...base, "", "", ""].slice(0, 3));
@@ -73,39 +71,80 @@ export default function SettingsPage() {
   });
 
   const updateDigestMutation = useMutation({
-    mutationFn: (enabled: boolean) => setDigestPreference(enabled, token!),
+    mutationFn: (enabled: boolean) => setDigestPreference(enabled),
     onSuccess: (data) => {
       queryClient.setQueryData(["digest-pref"], data);
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        router.replace("/login");
+      }
     }
   });
 
   const sendDigestMutation = useMutation({
-    mutationFn: () => sendDigestNow(token!),
+    mutationFn: () => sendDigestNow(),
     onSuccess: () => {
       // no-op; you could toast success
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        router.replace("/login");
+      }
     }
   });
 
   const saveKitMutation = useMutation({
-    mutationFn: (actions: string[]) => saveCopingKit(actions, token!),
+    mutationFn: (actions: string[]) => saveCopingKit(actions),
     onSuccess: (data) => {
       queryClient.setQueryData(["coping-kit"], data);
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        router.replace("/login");
+      }
     }
   });
 
   const disconnectCalendarMutation = useMutation({
-    mutationFn: () => disconnectCalendar(token!),
+    mutationFn: () => disconnectCalendar(),
     onSuccess: () => {
       setCalendarNotice("Calendar disconnected.");
       setCalendarError(null);
       queryClient.invalidateQueries({ queryKey: ["calendar-status"] });
     },
     onError: (error: unknown) => {
-      setCalendarError(
-        error instanceof Error ? error.message : "Unable to disconnect calendar right now."
-      );
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        router.replace("/login");
+      } else {
+        setCalendarError(
+          error instanceof Error ? error.message : "Unable to disconnect calendar right now."
+        );
+      }
     }
   });
+
+  React.useEffect(() => {
+    const unauthorizedSources = [
+      profileQuery.error,
+      calendarStatusQuery.error,
+      digestQuery.error,
+      kitQuery.error
+    ];
+    if (
+      unauthorizedSources.some(
+        (error) => error instanceof ApiError && (error.status === 401 || error.status === 403)
+      )
+    ) {
+      router.replace("/login");
+    }
+  }, [
+    profileQuery.error,
+    calendarStatusQuery.error,
+    digestQuery.error,
+    kitQuery.error,
+    router
+  ]);
 
   React.useEffect(() => {
     function handleMessage(event: MessageEvent) {
@@ -138,7 +177,8 @@ export default function SettingsPage() {
   }
 
   async function handleCalendarConnect() {
-    if (!token) {
+    if (!isAuthenticated) {
+      router.replace("/login");
       return;
     }
     setCalendarNotice(null);
@@ -146,7 +186,6 @@ export default function SettingsPage() {
     setIsConnectingCalendar(true);
     try {
       const { authorize_url: authorizeUrl } = await getCalendarAuthorizeUrl(
-        token,
         window.location.origin
       );
       const popup = window.open(
@@ -223,7 +262,10 @@ export default function SettingsPage() {
               variant="outline"
               onClick={handleCalendarConnect}
               disabled={
-                !token || isConnectingCalendar || calendarStatusQuery.isLoading || calendarConnected
+                !isAuthenticated ||
+                isConnectingCalendar ||
+                calendarStatusQuery.isLoading ||
+                calendarConnected
               }
             >
               {calendarStatusQuery.isLoading

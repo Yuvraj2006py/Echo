@@ -1,12 +1,13 @@
-"\"\"\"Analytics API endpoints.\"\"\""
+"""Analytics API endpoints."""
 
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
+from ..core import rate_limit_write
 from ..db import queries
 from ..services import analytics as analytics_service
 from ..services.auth import AuthenticatedUser, get_current_user
@@ -52,7 +53,9 @@ def get_weekly_analytics(
 
 
 @router.post("/recompute")
+@rate_limit_write()
 def recompute_analytics(
+    request: Request,
     scope: Literal["daily", "weekly"] = Query(...),
     user: AuthenticatedUser = Depends(get_current_user),
 ) -> dict:

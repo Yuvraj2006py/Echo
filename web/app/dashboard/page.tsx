@@ -14,9 +14,9 @@ import {
   fetchWeeklyAnalytics,
   fetchLatestWeeklySummary,
   fetchProfile,
+  ApiError,
   type SummaryPeriod
 } from "../../lib/api";
-import { getSupabaseBrowserClient } from "../../lib/supabase";
 import { EmotionTrendChart } from "../../components/EmotionTrendChart";
 import { EmotionDist } from "../../components/EmotionDist";
 import { Heatmap } from "../../components/Heatmap";
@@ -31,7 +31,6 @@ import { WeekOverWeekSection } from "../../components/WeekOverWeekSection";
 import { BehavioralCorrelationsSection } from "../../components/BehavioralCorrelationsSection";
 import { WordSentimentMap } from "../../components/WordSentimentMap";
 import { WeeklySummaryPanel } from "../../components/WeeklySummaryPanel";
-import { rememberUserName, resolveUserName } from "../../lib/user-display";
 
 const TAG_SHORTCUTS = ["Calm", "Anxious", "Proud", "Drained", "Grateful", "Frustrated", "Focused"];
 const TIMEFRAME_OPTIONS: Array<{ key: SummaryPeriod; label: string; days: number }> = [
@@ -61,10 +60,6 @@ function formatRelative(date: Date) {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
-  const [token, setToken] = React.useState<string | null>(null);
-  const [userName, setUserName] = React.useState<string | null>(null);
-  const emailRef = React.useRef<string | null>(null);
   const [timeframe, setTimeframe] = React.useState<SummaryPeriod>("week");
   const [dateRange, setDateRange] = React.useState(() => {
     const end = new Date();
@@ -72,100 +67,69 @@ export default function DashboardPage() {
     return { start, end };
   });
 
-  React.useEffect(() => {
-    let isMounted = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!isMounted) return;
-      const session = data.session;
-      if (!session) {
-        setToken(null);
-        setUserName(null);
-        emailRef.current = null;
-        router.replace("/login");
-        return;
-      }
-      setToken(session.access_token);
-      emailRef.current = session.user?.email ?? null;
-      setUserName(resolveUserName(session));
-    });
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        if (isMounted) {
-          setToken(null);
-          setUserName(null);
-          emailRef.current = null;
-        }
-        router.replace("/login");
-      } else {
-        if (!isMounted) {
-          return;
-        }
-        setToken(session.access_token);
-        emailRef.current = session.user?.email ?? null;
-        setUserName(resolveUserName(session));
-      }
-    });
-    return () => {
-      isMounted = false;
-      authListener.subscription.unsubscribe();
-    };
-  }, [router, supabase]);
-
-  useQuery({
-    queryKey: ["profile", token],
-    queryFn: () => fetchProfile(token!),
-    enabled: Boolean(token),
-    staleTime: 1000 * 60 * 5,
-    onSuccess: (data) => {
-      const fetchedName = data.full_name?.trim();
-      if (!fetchedName) {
-        return;
-      }
-      setUserName((previous) => (previous === fetchedName ? previous : fetchedName));
-      rememberUserName(emailRef.current, fetchedName);
-    }
+  const profileQuery = useQuery({
+    queryKey: ["profile"],
+    queryFn: fetchProfile,
+    retry: false,
+    staleTime: 1000 * 60 * 5
   });
 
+  React.useEffect(() => {
+    const error = profileQuery.error;
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      router.replace("/login");
+    }
+  }, [profileQuery.error, router]);
+
+  const userName = React.useMemo(() => {
+    const raw = profileQuery.data?.full_name;
+    if (!raw) {
+      return null;
+    }
+    const trimmed = raw.trim();
+    return trimmed || null;
+  }, [profileQuery.data?.full_name]);
+
   const entriesQuery = useQuery({
-    queryKey: ["entries", token],
-    queryFn: () => fetchEntries(token!),
-    enabled: Boolean(token)
+    queryKey: ["entries"],
+    queryFn: () => fetchEntries(),
+    enabled: profileQuery.status === "success"
   });
 
   const insightsQuery = useQuery({
-    queryKey: ["insights", token, timeframe],
+    queryKey: ["insights", timeframe],
     queryFn: () => {
       const option = TIMEFRAME_OPTIONS.find((opt) => opt.key === timeframe)!;
-      return fetchInsights(token!, option.days);
+      return fetchInsights(option.days);
     },
-    enabled: Boolean(token)
+    enabled: profileQuery.status === "success"
   });
 
   const summaryQuery = useQuery({
-    queryKey: ["summary", token, timeframe],
-    queryFn: () => fetchSummary(token!, timeframe),
-    enabled: Boolean(token)
+    queryKey: ["summary", timeframe],
+    queryFn: () => fetchSummary(timeframe),
+    enabled: profileQuery.status === "success"
   });
 
   const startIso = format(dateRange.start, "yyyy-MM-dd");
   const endIso = format(dateRange.end, "yyyy-MM-dd");
 
   const dailyAnalyticsQuery = useQuery({
-    queryKey: ["analytics", "daily", token, startIso, endIso],
-    queryFn: () => fetchDailyAnalytics(token!, startIso, endIso),
-    enabled: Boolean(token)
+    queryKey: ["analytics", "daily", startIso, endIso],
+    queryFn: () => fetchDailyAnalytics(startIso, endIso),
+    enabled: profileQuery.status === "success"
   });
 
   const weeklyAnalyticsQuery = useQuery({
-    queryKey: ["analytics", "weekly", token, startIso, endIso],
-    queryFn: () => fetchWeeklyAnalytics(token!, startIso, endIso),
-    enabled: Boolean(token)
+    queryKey: ["analytics", "weekly", startIso, endIso],
+    queryFn: () => fetchWeeklyAnalytics(startIso, endIso),
+    enabled: profileQuery.status === "success"
   });
 
   const weeklySummaryLatestQuery = useQuery({
-    queryKey: ["summary-latest", token],
-    queryFn: () => fetchLatestWeeklySummary(token!, true),
-    enabled: Boolean(token)
+    queryKey: ["summary-latest"],
+    queryFn: () => fetchLatestWeeklySummary(true),
+    enabled: profileQuery.status === "success"
   });
 
   const refreshing = summaryQuery.isRefetching || summaryQuery.isLoading;

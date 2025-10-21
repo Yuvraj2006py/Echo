@@ -6,11 +6,12 @@ import os
 from datetime import UTC, datetime, timedelta
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
+from ..core import rate_limit_write
 from ..db import queries
 from ..services.auth import AuthenticatedUser, get_current_user
 from ..services.insights import summarize_entries
@@ -26,8 +27,10 @@ def get_digest_pref_route(user: AuthenticatedUser = Depends(get_current_user)) -
 
 
 @router.post("/pref")
+@rate_limit_write()
 def set_digest_pref_route(
-    payload: dict,
+    request: Request,
+    payload: dict = Body(...),
     user: AuthenticatedUser = Depends(get_current_user),
 ) -> dict:
     enabled = bool(payload.get("enabled", True))
@@ -50,7 +53,11 @@ def _format_digest_body(*, user_email: str, summary: str, insights: dict, coping
 
 
 @router.post("/send-now")
-def send_digest_now(user: AuthenticatedUser = Depends(get_current_user)) -> dict:
+@rate_limit_write()
+def send_digest_now(
+    request: Request,
+    user: AuthenticatedUser = Depends(get_current_user),
+) -> dict:
     api_key = os.getenv("SENDGRID_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="SendGrid API key not configured.")
