@@ -63,12 +63,22 @@ export default function SettingsPage() {
   const kitQuery = useQuery({
     queryKey: ["coping-kit"],
     queryFn: () => getCopingKit(),
-    enabled: isAuthenticated,
-    onSuccess: (data) => {
-      const base = data?.actions ?? [];
-      setActionsDraft([...base, "", "", ""].slice(0, 3));
-    }
+    enabled: isAuthenticated
   });
+
+  React.useEffect(() => {
+    if (!kitQuery.data) {
+      return;
+    }
+    const base = kitQuery.data.actions ?? [];
+    const next = [...base, "", "", ""].slice(0, 3);
+    setActionsDraft((current) => {
+      if (current.length === next.length && current.every((value, index) => value === next[index])) {
+        return current;
+      }
+      return next;
+    });
+  }, [kitQuery.data]);
 
   const updateDigestMutation = useMutation({
     mutationFn: (enabled: boolean) => setDigestPreference(enabled),
@@ -238,9 +248,9 @@ export default function SettingsPage() {
           <Button
             variant="outline"
             onClick={() => sendDigestMutation.mutate()}
-            disabled={sendDigestMutation.isLoading}
+            disabled={sendDigestMutation.isPending}
           >
-            {sendDigestMutation.isLoading ? "Sending…" : "Send digest now"}
+            {sendDigestMutation.isPending ? "Sending…" : "Send digest now"}
           </Button>
         </CardContent>
       </Card>
@@ -262,13 +272,10 @@ export default function SettingsPage() {
               variant="outline"
               onClick={handleCalendarConnect}
               disabled={
-                !isAuthenticated ||
-                isConnectingCalendar ||
-                calendarStatusQuery.isLoading ||
-                calendarConnected
+                !isAuthenticated || isConnectingCalendar || calendarStatusQuery.isPending || calendarConnected
               }
             >
-              {calendarStatusQuery.isLoading
+              {calendarStatusQuery.isPending
                 ? "Checking connection..."
                 : calendarConnected
                   ? "Calendar connected"
@@ -280,9 +287,9 @@ export default function SettingsPage() {
               <Button
                 variant="ghost"
                 onClick={() => disconnectCalendarMutation.mutate()}
-                disabled={disconnectCalendarMutation.isLoading}
+                disabled={disconnectCalendarMutation.isPending}
               >
-                {disconnectCalendarMutation.isLoading ? "Disconnecting..." : "Disconnect"}
+                {disconnectCalendarMutation.isPending ? "Disconnecting..." : "Disconnect"}
               </Button>
             )}
           </div>
@@ -314,8 +321,8 @@ export default function SettingsPage() {
                 onChange={(event) => handleActionChange(index, event.target.value)}
               />
             ))}
-            <Button type="submit" disabled={saveKitMutation.isLoading}>
-              {saveKitMutation.isLoading ? "Saving…" : "Save actions"}
+            <Button type="submit" disabled={saveKitMutation.isPending}>
+              {saveKitMutation.isPending ? "Saving…" : "Save actions"}
             </Button>
           </form>
         </CardContent>

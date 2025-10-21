@@ -23,6 +23,13 @@ type Props = {
   keywords?: Keyword[];
 };
 
+type BubblePoint = {
+  term: string;
+  frequency: number;
+  sentiment: number;
+  size: number;
+};
+
 function bubbleColor(sentiment: number) {
   const clamped = Math.max(-1, Math.min(1, sentiment));
   if (clamped >= 0) {
@@ -91,10 +98,13 @@ export function WordSentimentMap({ keywords }: Props) {
               />
               <Scatter
                 data={data}
-                shape={(props) => {
+                shape={(props: { cx?: number; cy?: number; size?: number; payload?: BubblePoint }) => {
                   const { cx, cy, size, payload } = props;
                   if (typeof cx !== "number" || typeof cy !== "number") {
-                    return null;
+                    return <g />;
+                  }
+                  if (!payload) {
+                    return <g />;
                   }
                   const radius = Math.sqrt(size ?? 40);
                   return (
@@ -126,4 +136,3 @@ export function WordSentimentMap({ keywords }: Props) {
     </Card>
   );
 }
-
