@@ -23,3 +23,5 @@ mobile/.expo-shared/
 
 # Model caches
 backend/.cache/
+
+infra/airflow/logs/
