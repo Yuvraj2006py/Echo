@@ -11,6 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { Badge } from "../../components/ui/badge";
 import { EntryEmotionPie } from "../../components/EntryEmotionPie";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default function EntriesPage() {
   const router = useRouter();
   const [userName, setUserName] = React.useState<string | null>(null);

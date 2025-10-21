@@ -9,6 +9,9 @@ import { Textarea } from "../../../components/ui/textarea";
 import { Badge } from "../../../components/ui/badge";
 import { cn } from "../../../lib/utils";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const TAGS = ["Calm", "Anxious", "Proud", "Drained", "Grateful", "Frustrated", "Focused"];
 
 type ConversationMessage = {

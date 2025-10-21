@@ -61,6 +61,9 @@ const features = [
   }
 ];
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default function LandingPage() {
   return (
     <div className="pb-24 pt-10">

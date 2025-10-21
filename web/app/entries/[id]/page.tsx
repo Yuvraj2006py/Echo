@@ -12,6 +12,9 @@ type EntryDetailPageProps = {
   params: { id: string };
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default function EntryDetailPage({ params }: EntryDetailPageProps) {
   const router = useRouter();
   const query = useQuery({

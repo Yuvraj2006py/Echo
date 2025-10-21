@@ -8,6 +8,9 @@ import { Input } from "../../components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { rememberUserName } from "../../lib/user-display";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default function LoginPage() {
   const router = useRouter();
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);

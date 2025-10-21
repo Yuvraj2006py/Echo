@@ -32,6 +32,9 @@ import { BehavioralCorrelationsSection } from "../../components/BehavioralCorrel
 import { WordSentimentMap } from "../../components/WordSentimentMap";
 import { WeeklySummaryPanel } from "../../components/WeeklySummaryPanel";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const TAG_SHORTCUTS = ["Calm", "Anxious", "Proud", "Drained", "Grateful", "Frustrated", "Focused"];
 const TIMEFRAME_OPTIONS: Array<{ key: SummaryPeriod; label: string; days: number }> = [
   { key: "day", label: "Today", days: 1 },

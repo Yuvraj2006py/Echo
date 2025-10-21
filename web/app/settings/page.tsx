@@ -20,6 +20,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default function SettingsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
