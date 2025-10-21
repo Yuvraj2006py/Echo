@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   description: "Understand your emotions like data across web and mobile."
 };
 
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
