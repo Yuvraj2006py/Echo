@@ -26,7 +26,9 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     UVICORN_HOST=0.0.0.0 \
-    UVICORN_PORT=8000
+    UVICORN_PORT=8000 \
+    WEB_CONCURRENCY=1 \
+    PRELOAD_MODELS=0
 
 WORKDIR /app
 
@@ -46,4 +48,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -fsS http://127.0.0.1:${UVICORN_PORT}/healthz || exit 1
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["/bin/sh", "-c", "uvicorn main:app --host ${UVICORN_HOST:-0.0.0.0} --port ${PORT:-$UVICORN_PORT} --workers ${WEB_CONCURRENCY:-1}"]
